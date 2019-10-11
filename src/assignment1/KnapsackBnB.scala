@@ -10,8 +10,8 @@ import scala.io.Source
  */
 object KnapsackBnB extends App {
 
-  // val lines = Source.fromFile("src/assignment1/data/instanceB.txt").getLines.reduceLeft(_ + " " + _)
-  val lines = Source.fromFile(args(0)).getLines.reduceLeft(_ + " " + _)
+  val lines = Source.fromFile("src/assignment1/data/instanceB.txt").getLines.reduceLeft(_ + " " + _)
+  // val lines = Source.fromFile(args(0)).getLines.reduceLeft(_ + " " + _)
   var vals = lines.split("[ ,\t]").toList.filterNot(_ == "").map(_.toInt)
   val pairs = vals.sliding(2,2).toList
   val n::c::Nil = pairs.head
@@ -30,6 +30,7 @@ object KnapsackBnB extends App {
 
   // sort items by increasing value/weight ratio
   scala.util.Sorting.quickSort(items)(Ordering.by { case (v, w) => -v}) // -v.toDouble / w for other instances
+
   val root = new KnapsackNode(
     items = items,
     obj = 0,

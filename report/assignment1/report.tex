@@ -128,7 +128,7 @@ On the other hand, there are some major downsides to the DP algorithm as well:
 	This is for example what caused Instance B to take far too long using DP: for reference, while there are only 56 items to select, the maximum capacity and optimal value are both 104 723 596, meaning neither variation of the algorithm performs adequately.
 \end{itemize}
 Taking all of this into account, DP makes for a good first try at a solution, and can serve as an easy way to obtain solutions to a real-life problem to see whether other, more complex algorithms are correctly implemented and thought out.
-For this assignment, four instances were solved using DP (A, C, D and E).
+For this assignment, two instances were solved using DP (D and E).
 
 \section{Branch and Bound}
 Branch and bound, or BnB for short, is an algorithm which uses upper-bounding and tree search in order to discard parts of a huge binary tree which have been shown not to contain an optimal solution.
@@ -196,7 +196,7 @@ Concretely, two options exist, each with their own advantages and disadvantages:
 \end{itemize}
 In the code, the only change that needs to be made is in the \scala{OpenNodes} implementation.
 
-For this assignment, a best-first search algorithm using linear relaxation for upper bounding was used to solve instance F, which did not get solved within the memory and time constraints by the DP algorithm.
+For this assignment, a best-first search algorithm using linear relaxation for upper bounding was used to solve instances A, C and F, which did either not get solved within the memory and time constraints by the DP algorithm (C) or because BnB was implemented before DP (A and F, where both algorithms arrive at the correct solution).
 
 \subsection{Output formatting}
 \label{sec:bnboutput}
@@ -210,9 +210,9 @@ Instance B has the property that all its items have a unit utility ratio.
 This means that sorting them does nothing, other than potentially shuffle them (since quicksort is not a stable sort).
 Add in the fact that the LR upper bound, while tight, gives little extra information in this case, and one quickly gets a problem which takes a very long time to get solved.
 
-However, seeing as sorting by utility ratio does not change the ordering, and that the upper bound, despite being tight, does not allow best-first search to solve the problem optimally fast enough, an algorithm using DFS based on a \scala{Stack} was implemented, with elements being sorted based on their value (least valuable items being taken first).
+However, seeing as sorting by utility ratio does not change the ordering, and that the upper bound, despite being tight, does not allow best-first search to solve the problem optimally fast enough, an algorithm using DFS based on a \scala{Stack} was implemented, with elements being sorted based on their value (most valuable items being taken first).
 
-This algorithm outperforms the other BnB one (and the DP solver as well) by quite some margin, finding the optimal solution in a matter of seconds (in fact, it happens to go down the ``right'' path almost immediately due to the order in which variables are examined).
+This algorithm outperforms the other BnB one (and the DP solver as well) by quite some margin, finding the optimal solution in a matter of seconds (in fact, it happens to go down the ``optimal'' path almost immediately due to the order in which variables are examined).
 
 \section{Conclusion}
 The knapsack problem is one of the most important problems in combinatorial optimization, and DP and BnB are only some of the many possible ways to solve instances of it.
