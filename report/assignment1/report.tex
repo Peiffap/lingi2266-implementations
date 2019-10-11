@@ -20,7 +20,7 @@
 \maketitle
 
 \begin{abstract}
-	An analysis of the solution to the knapsack problem is given which takes into account various dimensions along which to judge algorithms for this problem is given.
+	An analysis of the solution to the knapsack problem which takes into account various dimensions along which to judge algorithms for this problem is given.
 	Various heuristics are given, some of which are based on a theoretical understanding of the mathematics behind the knapsack problem, while others are highly-specialized in order to profit from the input formulation as much as possible.
 	Some implementation fragments in Scala are also presented.
 \end{abstract}
@@ -36,28 +36,28 @@ The goal for this assignment was to solve various instances of the \emph{knapsac
 \end{array}
 \]
 
-Two main types of algorithms used to solve this class of problems are
+The two main types of algorithms used to solve this class of problems are
 \begin{itemize}
 	\item \emph{dynamic programming} and
 	\item \emph{branch and bound}.
 \end{itemize}
-Each of these has its own advantages and disadvantages, which usually allow one to make an informed choice as to which algorithm is best-suited for one's particular instance of the knapsack problem.
+Each of these has its own advantages and disadvantages, which usually allow one to make an informed choice as to which algorithm is best-suited for a particular instance of the knapsack problem.
 
 \section{I/O}
-In order to be easily tested, the input and output for this particular instance have a very specific fixed format.
+In order to be easily tested on INGInious, the input and output for this particular instance have a very specific fixed format.
 \subsection{Reading the Input}
-The program is given a \scala{String} as input which contains the path to the data files.
-This file is opened and read according to the format specified in the problem description on INGInious, and uses Scala code from Pierre Schaus written for this purpose.
+The program is given a \scala{String} as input which contains the path to the data file.
+This file is opened and read according to the format specified in the problem description on INGInious, and uses Scala code written for this purpose by Pierre Schaus.
 
 \subsection{Output Formatting}
 The \scala{toString} method definition is overridden in order to produce output with the correct format.
-This requires some internal bookkeeping, explained in slightly more detail in Sections~\ref{sec:dpoutput} and \ref{sec:bnboutput}.
+This requires some internal bookkeeping, explained in slightly more detail in Sections~\ref{sec:dpoutput} (for dynamic programming) and \ref{sec:bnboutput} (for branch and bound).
 
 \section{Dynamic Programming}
 Dynamic programming, or DP for short, is an algorithmic technique which uses memoization in order to improve computation time at the cost of memory space.
 
 \subsection{Recurrence Equations}
-One can define the \emph{objective function} \(\mathscr{O}(j, k)\), which gives the optimal value of the knapsack problem for items 1 through \(j\), for a maximum capacity \(k\).
+One has to define an \emph{objective function} \(\mathscr{O}(j, k)\), which, for the knapsack problem, gives the optimal value that can be obtained using items 1 through \(j\) and with a capacity \(k\).
 This function can be defined recursively as follows:
 \[
 \mathscr{O}(j, k) = \left\{
@@ -69,7 +69,7 @@ This function can be defined recursively as follows:
 \end{array}
 \right.
 \]
-According to this logic, the final solution is \(\mathscr{O}(n, C)\).
+By this definition, the final solution to the problem is \(\mathscr{O}(n, C)\).
 \subsection{Implementation}
 Turning these equations into Scala is fairly straightforward.
 The following is what one could consider the ``core'' of the implementation:
@@ -100,18 +100,17 @@ def O_(j: Int, k: Int): Int = {
 println(O(n-1, c))
 \end{minted}
 \subsubsection{Recurrence}
-The recurrence equation given earlier is implemented in the form of a multitude of \scala{if}/\scala{else} branches, and a function call to \scala{O_}, which is explained in Section~\ref{sec:dpmemo}.
-One should also note that instead of the solution being \(\mathscr{O}(n, C)\), one must call \scala{O(n-1, C)}.
-This is explained by the fact that Scala array indexing starts at 0, causing a potential off-by-one error that must be kept in mind.
+The recurrence equation given earlier is implemented in the form of a multitude of nested \scala{if}/\scala{else} branches, and a function call to \scala{O_}, which is explained in Section~\ref{sec:dpmemo}.
+One should also note that instead of the solution being \(\mathscr{O}(n, C)\), one must call \scala{O(n-1, C)}; this is explained by the fact that in Scala, array indexing starts at 0, causing a potential off-by-one error that must be kept in mind.
 \subsubsection{Memoization}
 \label{sec:dpmemo}
-The main goal of DP is to speed up computation time by storing values that were already computed--also called \emph{memoization}.
-\scala{cache} is responsible for this: whenever a value of \scala{O}, the objective function, is needed, the program calls a function \scala{O_} which then calls \scala{cache.getOrElseUpdate}.
-This function name describes what it does quite aptly: informally, it tells the computer to go and check if the value that is needed is already stored in \scala{cache}.
-If it is, \scala{O_} simply returns that value; on the other hand, if it was not computed yet, it is computed (using the same recursive structure) and the result is placed in \scala{cache} for future reference.
+The main goal of DP is to speed up computation time by storing values that were already computed--also called \emph{memoization}--and reusing those values whenever applicable.
+In the code fragment, \scala{cache} is responsible for this: whenever a value of \scala{O}, the objective function, is needed, the program calls \scala{O_} which serves as an alias for \scala{cache.getOrElseUpdate}.
+The latter's name describes what it does quite aptly: informally, it tells the computer to go and check if the value that is needed is already stored in \scala{cache}.
+If it is, \scala{O_} simply returns that value; on the other hand, if it was not cached yet, it is computed (using the recursive property of the objective function) and the result is stored in \scala{cache} for future reference.
 \subsubsection{Output Formatting}
 \label{sec:dpoutput}
-Another \scala{Map} works in a similar fashion: \scala{tkn} stores whether the optimal solution for a given \scala{j} and \scala{k} uses the \scala{j}th element.
+The \scala{Map} called \scala{tkn} stores whether the optimal solution for a given \scala{j} and \scala{k} uses the \scala{j}th element.
 This is not related to the actual knapsack problem, but is necessary to be able to construct the output according to the specifications.
 
 \subsection{Advantages and Disadvantages}
@@ -125,30 +124,31 @@ DP has several advantages:
 On the other hand, there are some major downsides to the DP algorithm as well:
 \begin{itemize}
 	\item \emph{For large values of \(C\)}, the algorithm's pseudo-polynomiality makes it unusable.
-	Another variant based on the value \(V\) is also possible, but the same restrictions apply when \(V\) is large.
+	A variation based on the value \(V\) is also possible, but the same restrictions apply when \(V\) is large.
 	This is for example what caused Instance B to take far too long using DP: for reference, while there are only 56 items to select, the maximum capacity and optimal value are both 104 723 596, meaning neither variation of the algorithm performs adequately.
 \end{itemize}
-Taking all this into account, DP is a good first try at a solution, and can serve as an easy way to obtain solutions to a real-life problem to see whether other, more complex algorithms are correctly implemented and thought out.
+Taking all of this into account, DP makes for a good first try at a solution, and can serve as an easy way to obtain solutions to a real-life problem to see whether other, more complex algorithms are correctly implemented and thought out.
 For this assignment, four instances were solved using DP (A, C, D and E).
 
 \section{Branch and Bound}
-Branch and bound, or BnB for short, is an algorithm which uses upper-bounding and tree search in order to discard parts of a huge binary  tree.
+Branch and bound, or BnB for short, is an algorithm which uses upper-bounding and tree search in order to discard parts of a huge binary tree which have been shown not to contain an optimal solution.
 More formally, consider the knapsack problem of Section~\ref{sec:intro}.
 This problem, in a way, searches for a tuple of binary values which maximizes the objective function.
 Consider the search tree formed by the possible value assignments to this tuple.
-At the root, all variables are ``free'', but every time the tree branches in two, the left subtree has a variable set to 1, while the right subtree has that same variable set to 0.
-Assume one has a procedure to efficiently find an upper-bound for the tree below a certain node.
-By first finding a feasible solution, and then trying to find a better one all while discarding subtrees with an upper bound lower than or equal to the best known value, one can thus avoid having to search the entire tree, whose size grows exponentially with the number of inputs.
+At the root, all variables are ``free'' to be either 1 or 0, but every time the tree branches in two, the left subtree has a variable set to 1, while the right subtree has that same variable set to 0.
+If one has a procedure to efficiently find an upper bound for the subtree rooted at a certain node, the optimal solution can be obtained by first finding a feasible solution, and then trying to find a better one while discarding subtrees with an upper bound lower than or equal to the best known value of the feasible solution.
+This way, one can avoid having to explore the entire search tree, whose size grows exponentially with the number of decision variables.
 
 \subsection{Design Choices}
 The explanation above is purposely vague, since many design choices still need to be taken based on the specific instance of the problem.
-The biggest one is the upper-bounding procedure.
+The most important is of the upper-bounding procedure.
 While technically not necessary to find a solution, this is required to help discard subtrees faster and thus make the algorithm solve problems much more efficiently.
+If the upper-bounding procedure is not sufficiently tight (or takes a long time to compute), branch and bound is not much better than a brute force approach.
 
 \subsubsection{Upper-bounding}
 The upper-bounding procedure of choice, which gives great results in the majority of cases, is called \emph{linear relaxation}.
-What LR does is instead of fixing variables to be binary, it allows them to be anywhere in \([0, 1]\).
-By then sorting free items (i.e., whose decision variable has not been set yet) by their utility ratio, that is, the ratio between their value and their weight, and selecting as much of those as possible until the capacity constraint is tight, we can guarantee that the optimal objective will be lower than or equal to this upper bound.
+What LR does is, instead of forcing variables to be binary, it allows them to be anywhere in \([0, 1]\).
+By then sorting free items (i.e., whose decision variable has not been set yet) by their utility ratio, that is, the ratio between their value and weight, and selecting as many of these items (and potentially, fractions of items) as possible until the capacity constraint is tight, we can guarantee that the optimal objective will be lower than or equal to this upper bound.
 
 To implement this, we do the following (suppose that \scala{selectable} has been \textbf{sorted} already):
 \begin{minted}[fontsize=\scriptsize]{scala}
@@ -178,19 +178,19 @@ In this code fragment, one can distinguish two main steps:
 	\item add whatever you can of the critical item, maxing out the capacity.
 \end{enumerate}
 
-Additionally, though not necessary, the floor function can be applied to this final result, since one can prove that if the weights and values are integers, then so is the optimal solution.
+Additionally, though not necessary, the flooring function can be applied to this final result, since one can prove that if the weights and values are integers, then so is the optimal solution.
 
 \subsubsection{Traversal algorithm}
-So far, no comment has been made about the traversal algorithm used to decide which nodes are to be explored first.
+This section mentions the traversal algorithms which can be used to decide which nodes are to be explored first.
 Concretely, two options exist, each with their own advantages and disadvantages:
 \begin{itemize}
 	\item \emph{Best-first search}.
-	This traversal looks at nodes with the most promising (highest) upper bound first.
-	This can be implemented with a \scala{PQueue}; the code used for this is heavily influence by the one on the course's BitBucket repository.
+	This traversal looks at the most promising nodes (highest upper bound) first.
+	This search strategy can be implemented with a \scala{PQueue}; the code used for this is heavily influenced by the one on the course's BitBucket repository, written by Pierre Schaus.
 	The main advantage of this strategy is also its main drawback: it depends heavily on the quality of the upper-bounding procedure in order to be successful.
 	Another big drawback is that the user has no control over the number of open nodes which are kept in memory.
 	\item \emph{Depth-first search}.
-	DFS looks at the deepest, leftmost node first, regardless of the upper bound (as long as exploring the subtree makes sense, that is).
+	DFS looks at the deepest, leftmost node first, regardless of the upper bound (as long as exploring the subtree makes sense, i.e. as long as the subtree potentially contains an optimal solution).
 	This can be implemented with a \scala{Stack}.
 	This strategy, while not being as good in general at finding optimal solutions, does fare much better in the memory department, since memory consumption is proportional to the height of the tree, which is typically linear.
 \end{itemize}
@@ -200,23 +200,23 @@ For this assignment, a best-first search algorithm using linear relaxation for u
 
 \subsection{Output formatting}
 \label{sec:bnboutput}
-When sorting the elements, to be able to apply LR, the initial order gets lost.
+When sorting the elements with the goal of being able to apply LR, the initial order gets lost.
 This is quite problematic for this particular assignment, since the output format makes use of the initial order.
 To get around this problem, one can add the original weight and value vectors to the \scala{KnapsackNode}, using these to identify used items.
-The assumption that two items cannot be identical was verified beforehand, meaning this is a correct way to recover the initial ordering.
+The assumption that two items cannot be identical was verified beforehand, meaning this is a correct way for the instances of the assignment to recover the initial ordering.
 
 \subsection{The Peculiar Case of Instance B}
-Instance B has the property that all its items have the same unit utility ratio.
-This means that sorting them does nothing, other than shuffle them (since quicksort, the sorting algorithm that is used, is not stable).
-Add in the fact that the LR upper bound, while tight, gives little extra information in the case, and one quickly gets a problem which takes a very long time to get solved.
+Instance B has the property that all its items have a unit utility ratio.
+This means that sorting them does nothing, other than potentially shuffle them (since quicksort is not a stable sort).
+Add in the fact that the LR upper bound, while tight, gives little extra information in this case, and one quickly gets a problem which takes a very long time to get solved.
 
-However, seeing as sorting by utility ratio does not change the ordering, and that the upper bound, despite being tight, does not allow best-first search to solve the problem optimally fast enough, a switch was made to use a DFS algorithm based on a \scala{Stack} instead, with elements being sorted based on their value (least valuable items being taken first).
+However, seeing as sorting by utility ratio does not change the ordering, and that the upper bound, despite being tight, does not allow best-first search to solve the problem optimally fast enough, an algorithm using DFS based on a \scala{Stack} was implemented, with elements being sorted based on their value (least valuable items being taken first).
 
 This algorithm outperforms the other BnB one (and the DP solver as well) by quite some margin, finding the optimal solution in a matter of seconds (in fact, it happens to go down the ``right'' path almost immediately due to the order in which variables are examined).
 
 \section{Conclusion}
-The knapsack problem is one of the most important problems in combinatorial optimization, and DP and BnB are only some of the possible ways to solve it.
-Thanks to this assignment, we learnt that in some cases, it is very hard to predict which algorithm is best-suited for a given instance.
+The knapsack problem is one of the most important problems in combinatorial optimization, and DP and BnB are only some of the many possible ways to solve instances of it.
+Thanks to this assignment, we learnt that in some cases, it is very hard to predict which algorithm is best-suited to a given instance.
 
 Implementing the various algorithms helped to better understand why and how they work, while playing around with them on various instances helped to identify their strengths and shortcomings.
 \end{document}
