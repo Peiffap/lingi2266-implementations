@@ -9,9 +9,10 @@ import scala.io.Source
  *         Gilles Peiffer
  */
 object KnapsackBnB extends App {
-
-  val lines = Source.fromFile("src/assignment1/data/instanceB.txt").getLines.reduceLeft(_ + " " + _)
-  // val lines = Source.fromFile(args(0)).getLines.reduceLeft(_ + " " + _)
+  // val src = Source.fromFile("src/assignment1/data/instanceB.txt")
+  val src = Source.fromFile(args(0))
+  val lines = src.getLines.reduceLeft(_ + " " + _)
+  src.close()
   var vals = lines.split("[ ,\t]").toList.filterNot(_ == "").map(_.toInt)
   val pairs = vals.sliding(2,2).toList
   val n::c::Nil = pairs.head
