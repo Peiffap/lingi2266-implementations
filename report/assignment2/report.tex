@@ -1,0 +1,196 @@
+\documentclass[journal]{IEEEtran}
+\usepackage[utf8]{inputenc}
+\usepackage{minted}
+\usepackage{booktabs}
+\usepackage{color}
+\usepackage{mathtools}
+\usepackage{mathrsfs}
+\usepackage{multirow}
+\usepackage{clrscode3e}
+
+\newcommand{\lagr}{\mathscr{L}}
+
+\usepackage[binary-units=true]{siunitx}
+
+\newcommand{\scala}[1]{\mintinline{scala}{#1}}
+
+\title{Advanced Algorithms (\texttt{LINGI2266}) \\ Assignment 2: Weighted Set Cover Problem}
+\author{Gilles Peiffer}
+\date{November 22, 2019}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+	The present document contains an explanation of the solution to the weighted set cover problem using the method of Lagrangian relaxation.
+	Using this relaxation, one is able to find a consistent lower bound on the cost of a solution, which, coupled with the feasibility of the intermediate solutions, leads to an efficient technique to find an optimal assignment of variables, or a good lower bound on the cost of this assignment.
+	
+	Some code fragments in Scala are also showcased.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+The \emph{weighted set cover problem} is concerned with selecting the minimal subset of a list of \(m\) sets containing elements from \(\{1, \ldots n\}\) such that the union of this minimal subset contains all the elements at least once.
+Minimality is taken with respect to the costs of the sets which are chosen.
+If no such subset exists, the problem is infeasible.
+
+\section{Weighted Set Cover Problem}
+We use \(\mathscr{N}\) and \(\mathscr{M}\) to denote the \(n\) first and \(m\) first strictly positive integers, respectively.
+
+\subsection{Initial Formulation}
+The weighted set cover problem can be written as an optimization problem as follows:
+\[
+\renewcommand{\arraystretch}{1.5}
+\begin{array}{lrcl@{\quad}l}
+\textnormal{minimize} & \sum_{i \in \mathscr{M}} w_i x_i, &&&\\
+\textnormal{subject to} & \sum_{i : j \in \mathcal{S}_i} x_i & \ge & 1, & \forall j \in \mathscr{N},\\
+& x_i &\in& \{0, 1\}, & \forall i \in \mathscr{M},
+\end{array}
+\]
+where \(w_i\) is the cost of the \(i\)th set, \(x_i\) is a binary variable determining whether the \(i\)th set is taken, and \(\mathcal{S}_i\) is the \(i\)th set.
+
+\subsection{Lagrangian Relaxation}
+The \emph{Lagrangian relaxation} of this problem is then found by relaxing the covering constraint by modifying the objective function so that it takes into account constraint violations.
+The problem then becomes
+\[
+\renewcommand{\arraystretch}{1.5}
+\begin{array}{lrcl@{\quad}l}
+\textnormal{minimize} & \multicolumn{4}{l}{\sum_{i \in \mathscr{M}} w_i x_i - \sum_{j \in \mathscr{N}} \lambda_j \left(1 - \sum_{i : j \in \mathcal{S}_i} x_i \right),}\\
+\textnormal{subject to} & x_i &\in& \{0, 1\}, & \forall i \in \mathscr{M},
+\end{array}
+\]
+where \(\lambda_j\) is a nonnegative Lagrange multiplier pertaining to the \(j\)th element.
+One can observe the fundamental property of this modified problem, which is that its optimal value for a feasible assignment \(x\) is always less than or equal to the optimal value of the original problem.
+It is also much easier to solve than the original problem.
+This then leads to the following observation: if one finds the assignment \(\lambda\) which maximizes the lower bound, this can be used as an efficient pruning function in a branch and bound search; this assignment is only concerned with applying it to the root of the search tree.
+
+\subsection{Finding the Lower Bound: Subgradient Algorithm}
+We denote the lower bound associated to a given assignment \(\lambda\) by \(\mathscr{L}\).
+The problem of finding the optimal lower bound \(\mathscr{L}^*\) then corresponds to the following:
+\[
+\mathscr{L}^* = \max_\lambda \min_{x} \left(\sum_{i \in \mathscr{M}} w_i x_i - \sum_{j \in \mathscr{N}} \lambda_j \left(1 - \sum_{i : j \in \mathcal{S}_i} x_i \right)\right).
+\]
+
+In order to find this optimal lower bound, one can use a \emph{subgradient algorithm} to find the optimal assignment of \(\lambda\):
+\begin{enumerate}
+	\item Start with an initial assignment \(\lambda^{(0)}\); in this case, \(0\) was used, and set a step size \(\mu^{(0)}\); in this case \(\mu^{(0)} = 1\).
+	\item Let \(x^{(k)}\) be the variable assignment at iteration \(k\).
+	The update rule then becomes
+	\[
+	\lambda_j^{(k+1)} = \max\left\{0, \lambda_j^{(k)} + \mu^{(k)} \left(1 - \sum_{i : j \in \mathcal{S}_i} x_i^{(k)}\right)\right\}.
+	\]
+	This is done by the following bit of code.
+\begin{minted}[fontsize=\scriptsize]{scala}
+// Update the lambdas using the update rule.
+for (j <- lambda.indices) {
+  var mul: Int = 1
+  for (i <- setsContaining(j) if x(i) == 1)
+    mul -= 1 // Find the sets in which j appears.
+  lambda(j) = Math.max(0, lambda(j) + mu * mul)
+}
+\end{minted}
+
+	The variable assignment for the next iteration is then computed as follows.
+\begin{minted}[fontsize=\scriptsize]{scala}
+val coeff: Array[Double] = new Array[Double](m)
+// Coefficients of the decision variables.
+x = new Array[Int](m)
+for (i <- coeff.indices) {
+  coeff(i) = w(i)
+  for (j <- elementsIn(i))
+    coeff(i) -= lambda(j) // Update coefficients.
+  if (coeff(i) < 0.0)
+    x(i) = 1 // Decide which sets to take.
+}
+\end{minted}
+	
+	Finally, one must also update \(\mu^{(k)}\) in a way which satisfies the following convergence hypotheses:
+	\begin{align*}
+	\lim_{k \to \infty} \mu^{(k)} &= 0, \\
+	\sum_{k = 0}^{+\infty} \mu^{(k)} &= +\infty.
+	\end{align*}
+	In this case, the harmonic sequence \(\mu^{(k)} = 1/(k+1)\) was chosen.
+\end{enumerate}
+This algorithm ends after a certain number of iterations, though other measures can be used such as a threshold on the step size \(\mu\) or on the optimality gap \(\mathscr{G}\), defined as follows:
+\[
+\mathscr{G}^{(k)} = \frac{c_{x^{(k)}} - \lagr^*}{\lagr^*},
+\]
+where \(c_{x^{(k)}}\) is the cost of assignment \(x^{(k)}\).
+
+Using this procedure, the Lagrangian lower bound \(\mathscr{L}^{(k)}\) is guaranteed to change nondecreasingly.
+
+In the code, the lower bound is updated by the following bit of code.
+\begin{minted}[fontsize=\scriptsize]{scala}
+lb = 0.0
+for (i <- x.indices if x(i) == 1) lb += w(i)
+for (j <- lambda.indices) {
+  var mul: Int = 1
+  for (i <- setsContaining(j) if x(i) == 1)
+    mul -= 1 // Find the sets in which j appears.
+  lb += lambda(j) * mul
+}
+lb = Math.ceil(lb)
+\end{minted}
+Section~\ref{sec:ceil} explains why the last line is allowed.
+
+\subsection{Complete Algorithm}
+The complete algorithm for solving the weighted set covering problem can then be written as follows.
+\begin{codebox}
+	\Procname{\(\proc{Weighted-Set-Cover}\)}
+	\li \(\lagr^* \gets -\infty, \mu^{(0)} \gets 1, \lambda^{(0)} \gets 0\)
+	\li \If \(\bigcup_i \mathcal{S}_i \ne \mathscr{N}\)
+	\li 	\Then \Return ``infeasible''
+	\End
+	\li \For \(k \gets 1\) \To maxiter \Do
+	\li 	compute the optimal assignment \(x^{(0)}\) \Indentmore
+	\zi 		using the modified objective function \End
+	\li 	set \(\lagr^{(k)}\) to the objective value
+	\li 	\If \(\lagr^{(k)} \ge \lagr^*\)
+	\li 		\Then
+	\(\lagr^* \gets \lagr^{(k)}\)
+	\li			\If \(x^{(k)}\) is feasible
+	\li 				\Then
+	\(x^* \gets x^{(k)}\)
+	\End
+	\End
+	\li 	update \(\lambda^{(0)}\) and \(\mu^{(k)}\)
+	\End
+\end{codebox}
+
+\section{I/O}
+The program starts by reading the input and detecting whether the problem is feasible; if not, it prints ``infeasible'' and returns.
+The function used to test for feasibility is the following.
+
+\begin{minted}[fontsize=\scriptsize]{scala}
+def isFeasible(): Boolean = {
+  // See which elements are in the solution.
+  val elemsTaken: Array[Int] = new Array[Int](n)
+  for (i <- y.indices if y(i) == 1; j <- elementsIn(i))
+    elemsTaken(j) = 1 // Set to 1 when element is taken.
+  !elemsTaken.contains(0)
+}
+\end{minted}
+
+If the problem is feasible, the program solves the problem and outputs according to the type of solution and the corresponding format specified in the problem statement.
+
+\section{Improvements}
+\label{sec:improvements}
+Several improvements to the algorithm were made in order to pass the various test cases on INGInious.
+
+\subsection{Avoiding Lower Bounds With No Solution}
+Once feasibility has been established, one can immediately see that taking all the sets is a (very naive) feasible solution to the problem; its associated cost is then the sum of all the set costs.
+By doing this at the start, the program never runs into the case where a lower bound with no solution has been found.
+
+\subsection{Integrality of the Cost}
+\label{sec:ceil}
+Since the cost of a solution is a sum of integers, it must itself be an integer.
+This means that fractional lower bounds can be rounded up to the nearest integer, which drastically improves the efficiency of the program by requiring fewer operations.
+
+By doing this, one also gets rid of some of the problems due to numerical instability.
+
+\section{Submission on INGInious}
+By adding the improvements detailed in Section~\ref{sec:improvements}, the program (written in Scala) was able to pass all the test instances without needing other modifications.
+
+
+\end{document}
