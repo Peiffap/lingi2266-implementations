@@ -1,0 +1,139 @@
+\documentclass[journal]{IEEEtran}
+\usepackage[utf8]{inputenc}
+\usepackage{minted}
+\usepackage{booktabs}
+\usepackage{color}
+\usepackage{mathtools}
+\usepackage{mathrsfs}
+\usepackage{multirow}
+\usepackage{clrscode3e}
+\usepackage{enumitem}
+\usepackage{url}
+
+\DeclareMathOperator{\atantwo}{atan2}
+
+\newcommand{\lagr}{\mathscr{L}}
+
+\usepackage[binary-units=true]{siunitx}
+
+\newcommand{\scala}[1]{\mintinline{scala}{#1}}
+
+\usepackage{filecontents,lipsum}
+\usepackage[noadjust]{cite}
+\title{Advanced Algorithms (\texttt{LINGI2266}) \\ Assignment 3: Vehicle Routing Problem}
+\author{Gilles Peiffer}
+\date{December 20, 2019}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+	The present document contains an explanation of the solution to the vehicle routing problem using local search.
+	Several different methods exist to exploit the properties of the problem, such as 2-opt and Lin--Kernighan.
+	Using these techniques, one is able to reduce the total covered distance, while satisfying the capacity constraints.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+The \emph{vehicle routing problem} is concerned with assigning a route for each vehicle in a set such that every customer is served by exactly one vehicle, while also minimizing the total distance covered by the vehicles.
+
+\section{Vehicle Routing Problem}
+More formally, assume one is given a list of customers \(\mathscr{C} = 0, \ldots, n-1\) characterized by their demands \(d_i\) and their coordinates, where customer 0 is set by convention to be the warehouse in which vehicles start and end their routes, and a list of vehicles \(\mathscr{V} = 0, \ldots, k-1\), each having a capacity \(W\).
+For each vehicle \(v \in \mathscr{V}\), let \(R_v\) be the sequence of customer deliveries made by that vehicle and let \(\mathrm{distance}(c_1, c_2)\) be the Euclidean distance between customers \(c_1\) and \(c_2\).
+One can then formulate the VRP as an optimization problem:
+\[
+\renewcommand{\arraystretch}{1.5}
+\begin{array}{lrcl@{\quad}l}
+	\textnormal{minimize} & \multicolumn{4}{c}{\sum_{v \in \mathscr{V}} \sum_{(c_i, c_{i+1}) \in R_v} \mathrm{distance}(c_i, c_{i+1}),}\\
+	\textnormal{such that} & \sum_{c \in R_v} d_c & \le & W, & \forall v \in \mathscr{V},\\
+	& \sum_{v \in \mathscr{V}} (c \in R_v) & = & 1, & \forall c \in \mathscr{C} \setminus \{0\}.
+\end{array}
+\]
+
+\subsection{Initial heuristics}
+
+\subsubsection{Greedy Algorithms}
+One of the simplest possible algorithms uses a ``sweeping ray'' approach.
+The algorithm begins by computing the angle between the positive \(x\)-axis and the coordinates of the consumer.
+To do this, one can use the \(\atantwo\) operator, which takes the two coordinates and returns the angle.
+Once these angles have been computed, one need simply sort the list of points by ascending angle, and add as many customers as possible to a given route.
+Once the next customer's no longer fits in any of the existing routes, a new route is created, and the process restarts.
+
+While often suboptimal, this approach has the advantage of being very fast, as well as providing a good initial solution on which to run Lin--Kernighan.
+
+For instance D on INGInious, simply running the greedy sweeping algorithm, without optimization, was enough to get full marks.
+
+Other possible greedy algorithms prioritize the distance from the vehicle's current location instead of the angle, but neither gives a consistent advantage over the other.
+
+\subsubsection{Clarke and Wright Savings Algorithm}
+The most famous approach to the VRP is the ``savings'' algorithm of Clarke and Wright.
+The explanation here is heavily inspired from the one of~\cite{mitref}.
+Consider a depot \(c_0\), and \(n\) demand points.
+The naive initial solution would be to dispatch one vehicle for every consumer, for a total distance of \(2 \sum_{c \in 1, \ldots n-1} \mathrm{distance}(c_0, c)\).
+The cost difference when using a single vehicle to serve two customers \(i\) and \(j\) is then
+\[
+s(i, j) = \mathrm{distance}(c_0, i) + \mathrm{distance}(c_0, j) - \mathrm{distance}(i, j).
+\]
+This quantity is known as the ``savings'' resulting from combining \(i\) and \(j\) into a single tour.
+
+The Clarke and Wright savings algorithm is then as follows:
+\begin{enumerate}
+	\item Compute the savings \(s(i, j)\) for every pair of demand points.
+	\item Rank them in decreasing order of magnitude.
+	\item Starting with the topmost element and iterating through the list, include \((i,j)\) in a route if no route constraints will be violated through its inclusion, and if
+	\begin{enumerate}[label=\alph*)]
+		\item neither \(i\) or \(j\) have already been assigned to a route, in which case a new route is initiated including both;
+		\item exactly one of \(i\) and \(j\) has already been included in a route and is interior to that route, in which case the link is added to that route; or
+		\item both \(i\) and \(j\) have already been included in two different existing routes and neither point is interior to its route, in which case the two routes are merged.
+	\end{enumerate}
+	A point is said to be \emph{interior} to its route if it is adjacent to the depot on the route.
+	\item If the savings list has not been exhausted, return to the third step; otherwise, stop.
+	The solution to the VRP then consists of the routes created during step three; any points which have not been assigned a route must each be served by a naive solution.
+\end{enumerate}
+
+The savings algorithm is useful in that it provides a very solid baseline to run local search algorithms such as \(2\)-opt or Lin--Kernighan on.
+
+\subsection{Local Search Algorithms}
+In general, local search is a search method which relies on exploring the neighborhood of a solution in order to potentially find an even better solution from which to continue the process.
+
+In the specific case of the VRP, the most common local search algorithms are 2-opt and Lin--Kernighan, which both obtain the neighborhoods by removing edges.
+More specifically, a \emph{swap} is defined by taking edges, disconnecting them, and reconnecting the tour in a different way.
+
+\subsubsection{2-opt}
+2-opt uses the swapping mechanism in the most straightforward way: two edges are selected and reconnected, typically so as to remove a crossing (though there need not be a crossing for 2-opt to be useful).
+
+\subsubsection{\(k\)-opt}
+\(k\)-opt is a generalized form of 2-opt.
+The main difference is that there are multiple ways to reconnect the tour, instead of just one as with 2-opt.
+Finding the optimal value of \(k\) is not currently possible in polynomial time; as \(k\) grows, the neighborhood to explore becomes increasingly large.
+
+\subsubsection{Lin--Kernighan}
+Lin-Kernighan is an efficient way of performing \(k\)-opt which limits itself to \emph{sequential} \(k\)-opt moves, that is, \(k\)-opt moves which can be described by a path alternating between deleted and added edges.
+To find the optimal value of \(k\), one starts by greedily building a \(k\)-opt move, computing at each step the gain of applying said move to the problem.
+Once a certain limit on \(k\) is reached (or once the \(k\)-opt move becomes detrimental to the objective function), the value of \(k\) which gave the optimal solution is selected, retrospectively.
+
+Conceptually, a sequential \(k\)-opt move is analoguous to \(k-1\) 2-opt moves.
+
+The \(k\)-opt code provided by Peter Schaus had to be slightly adapted in order to fit the problem at hand (mainly enabling multiple routes to be optimized instead of just one as in the TSP).
+
+\section{I/O}
+The statement describes the output format, which requires the routes to start and end with the depot, as well as computing the total distance between which has the be covered by all the vehicles.
+
+\section{Other Algorithms}
+Several other algorithms exist for the VRP.
+One could imagine working using a relaxation approach as well, or use problem-dependent heuristics.
+
+\section{Conclusion}
+Local search is a great way to approach the VRP, though it does have some downsides; in practice, it is often not needed to implement such complicated algorithms, which still tend to be outperformed by problem-specific heuristics, and even when appropriate, it is a method which requires a bit of tuning before reaching its full potential; Lin--Kernighan depends on the maximum value of \(k\), which is often set arbitrarily by the user.
+On top of that, these computation-heavy methods are often rather slow for real-life problems.
+
+Despite all these concerns, local search is still a very powerful technique when used correctly by someone who is aware of its shortcomings.
+
+\begin{thebibliography}{9}
+	\bibitem{mitref}
+	MIT, Single-depot VRP, \url{http://web.mit.edu/urban_or_book/www/book/chapter6/6.4.12.html}, Accessed 20/12/2019.
+\end{thebibliography}
+
+
+\end{document}
